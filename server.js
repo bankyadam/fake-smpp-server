@@ -9,7 +9,29 @@ smpp.createServer()
   })
   .on('session', function(session) {
     session
-      .on('pdu', console.log)
+      .on('pdu', function(pdu) {
+        console.log(pdu);
+
+        switch(pdu.command) {
+          case 'bind_transceiver':
+            session.send(pdu.response());
+            return;
+
+          case 'submit_sm':
+            session.send(pdu.response({ message_id: 'this is the ID' }));
+
+            setTimeout(function() {
+              session.deliver_sm({
+                service_type: 'dummy',
+                source_addr_ton: 1,
+                source_addr_npi: 1,
+                source_addr: '1234567',
+                short_message: 'DELIVRD'
+              });
+            }, 3000);
+            return;
+        }
+      })
       .on('connect', console.log)
       .on('secureConnect', console.log)
       .on('close', console.log)
