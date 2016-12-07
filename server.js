@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const _ = require('lodash');
 const smpp = require('smpp');
 const logger = require('./logger');
@@ -28,15 +29,20 @@ function createSessionHandler(session) {
           return;
 
         case 'submit_sm':
-          session.send(pdu.response({ message_id: 'this is the ID' }));
+          const now = new Date();
+          const date = formatDate(new Date());
+          const messageId = date + crypto.randomBytes(4).toString('hex');
 
-          setTimeout(function() {
+          session.send(pdu.response({ message_id: messageId }));
+
+          setTimeout(() => {
             session.deliver_sm({
               service_type: SYSTEM_TYPE,
               source_addr_ton: 1,
               source_addr_npi: 1,
               source_addr: pdu.destination_addr,
-              short_message: 'DELIVRD'
+              short_message: `id:${messageId} sub:000 dlvrd:000 submit date:${date} done date:${date} stat:delivrd err:000`,
+              esm_class: 4
             });
           }, 3000);
           return;
@@ -47,4 +53,19 @@ function createSessionHandler(session) {
     .on('close', logger.getLoggerFor('close'))
     .on('unknown', logger.getErrorLoggerFor('unknown'))
     .on('error', logger.getErrorLoggerFor('error'));
+}
+
+function formatDate(date) {
+  const yy = leftpad(date.getFullYear());
+  const MM = leftpad(date.getMonth() + 1);
+  const dd = leftpad(date.getDate())
+  const h = leftpad(date.getHours())
+  const i = leftpad(date.getMinutes())
+  const s = leftpad(date.getSeconds())
+
+  return `${yy}${MM}${dd}${h}${i}${s}`;
+}
+
+function leftpad(i) {
+  return ('0' + i).slice(-2);
 }
