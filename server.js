@@ -5,17 +5,16 @@ const _ = require('lodash');
 const smpp = require('smpp');
 const logger = require('./logger');
 
-const port = process.env.PORT || 3456;
-const host = process.env.HOST || 'localhost';
+const PORT = process.env.PORT || 3456;
+const HOST = process.env.HOST || 'localhost';
 const SYSTEM_TYPE = process.env.SYSTEM_TYPE || 'dummy';
+const DELIVERY_REPORT_DELAY = parseInt(process.env.DELIVERY_REPORT_DELAY) || 3000;
 
 smpp.createServer()
-  .listen(port, host, function() {
-    console.log(`Server started at ${host}:${port}...`);
+  .listen(PORT, HOST, function() {
+    console.log(`Server started at ${HOST}:${PORT}...`);
   })
-  .on('session', function(session) {
-    createSessionHandler(session);
-  });
+  .on('session', createSessionHandler);
 
 
 function createSessionHandler(session) {
@@ -26,26 +25,15 @@ function createSessionHandler(session) {
       switch (pdu.command) {
         case 'bind_transceiver':
           session.send(pdu.response());
-          return;
+          break;
 
         case 'submit_sm':
-          const now = new Date();
-          const date = formatDate(new Date());
-          const messageId = date + crypto.randomBytes(4).toString('hex');
-
+          const messageId = getMessageId();
           session.send(pdu.response({ message_id: messageId }));
+          setTimeout(sendDeliveryReport, DELIVERY_REPORT_DELAY, session, messageId);
+          break;
 
-          setTimeout(() => {
-            session.deliver_sm({
-              service_type: SYSTEM_TYPE,
-              source_addr_ton: 1,
-              source_addr_npi: 1,
-              source_addr: pdu.destination_addr,
-              short_message: `id:${messageId} sub:000 dlvrd:000 submit date:${date} done date:${date} stat:delivrd err:000`,
-              esm_class: 4
-            });
-          }, 3000);
-          return;
+        default:
       }
     })
     .on('connect', logger.getLoggerFor('connect'))
@@ -55,17 +43,26 @@ function createSessionHandler(session) {
     .on('error', logger.getErrorLoggerFor('error'));
 }
 
-function formatDate(date) {
-  const yy = leftpad(date.getFullYear());
-  const MM = leftpad(date.getMonth() + 1);
-  const dd = leftpad(date.getDate())
-  const h = leftpad(date.getHours())
-  const i = leftpad(date.getMinutes())
-  const s = leftpad(date.getSeconds())
 
-  return `${yy}${MM}${dd}${h}${i}${s}`;
+function sendDeliveryReport(session, messageId) {
+  const date = getDateNow();
+
+  session.deliver_sm({
+    service_type: SYSTEM_TYPE,
+    source_addr_ton: 1,
+    source_addr_npi: 1,
+    source_addr: pdu.destination_addr,
+    short_message: `id:${messageId} sub:000 dlvrd:000 submit date:${date} done date:${date} stat:delivrd err:000`,
+    esm_class: 4
+  });
 }
 
-function leftpad(i) {
-  return ('0' + i).slice(-2);
+
+function getDateNow() {
+  return (new Date()).toISOString().replace(/\d{2}(\d{2})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):\d+\.\d+Z/, '$1$2$3$4$5');
+}
+
+
+function getMessageId() {
+  return crypto.randomBytes(14).toString('hex');
 }
