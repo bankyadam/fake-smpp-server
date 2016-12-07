@@ -2,7 +2,7 @@
 
 ✅ Dump incoming PDU to console
 
-◻️ Response all incoming PDU with a delivery report instantly with ACKD
+✅ Response all incoming PDU with a delivery report instantly with ACKD
 
 ✅ Response with DELIVRD after 10ms
 
