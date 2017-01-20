@@ -30,7 +30,7 @@ function createSessionHandler(session) {
         case 'submit_sm':
           const messageId = getMessageId();
           session.send(pdu.response({ message_id: messageId }));
-          setTimeout(sendDeliveryReport, DELIVERY_REPORT_DELAY, session, messageId);
+          setTimeout(sendDeliveryReport, DELIVERY_REPORT_DELAY, session, messageId, pdu);
           break;
 
         default:
@@ -44,7 +44,7 @@ function createSessionHandler(session) {
 }
 
 
-function sendDeliveryReport(session, messageId) {
+function sendDeliveryReport(session, messageId, pdu) {
   const date = getDateNow();
 
   session.deliver_sm({
