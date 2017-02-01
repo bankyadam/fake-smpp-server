@@ -23,6 +23,8 @@ function createSessionHandler(session) {
       _.partial(console.log, 'pdu')(pdu);
 
       switch (pdu.command) {
+        case 'bind_transmitter':
+        case 'bind_receiver':
         case 'bind_transceiver':
           session.send(pdu.response());
           break;
