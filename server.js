@@ -16,6 +16,8 @@ smpp.createServer()
   })
   .on('session', createSessionHandler);
 
+let transmitSession;
+let receiveSession;
 
 function createSessionHandler(session) {
   return session
@@ -24,15 +26,24 @@ function createSessionHandler(session) {
 
       switch (pdu.command) {
         case 'bind_transmitter':
+          transmitSession = session;
+          session.send(pdu.response());
+          break;
         case 'bind_receiver':
+          receiveSession = session;
+          session.send(pdu.response());
+          break;
+
         case 'bind_transceiver':
+          transmitSession = session;
+          receiveSession = session;
           session.send(pdu.response());
           break;
 
         case 'submit_sm':
           const messageId = getMessageId();
-          session.send(pdu.response({ message_id: messageId }));
-          setTimeout(sendDeliveryReport, DELIVERY_REPORT_DELAY, session, messageId, pdu);
+          transmitSession.send(pdu.response({ message_id: messageId }));
+          setTimeout(sendDeliveryReport, DELIVERY_REPORT_DELAY, receiveSession, parseInt(messageId, 16), pdu);
           break;
 
         default:
@@ -45,18 +56,27 @@ function createSessionHandler(session) {
     .on('error', logger.getErrorLoggerFor('error'));
 }
 
+let transmitSession;
+let receiveSession;
 
 function sendDeliveryReport(session, messageId, pdu) {
-  const date = getDateNow();
+  const intervalId = setInterval(function() {
+    if (!session) {
+     return;
+    }
 
-  session.deliver_sm({
-    service_type: SYSTEM_TYPE,
-    source_addr_ton: 1,
-    source_addr_npi: 1,
-    source_addr: pdu.destination_addr,
-    short_message: `id:${messageId} sub:000 dlvrd:000 submit date:${date} done date:${date} stat:delivrd err:000`,
-    esm_class: 4
-  });
+    const date = getDateNow();
+
+    session.deliver_sm({
+      service_type: SYSTEM_TYPE,
+      source_addr_ton: 1,
+      source_addr_npi: 1,
+      source_addr: pdu.destination_addr,
+      short_message: `id:${messageId} sub:000 dlvrd:000 submit date:${date} done date:${date} stat:DELIVRD err:000`,
+      esm_class: 4});
+
+    clearInterval(intervalId);
+  }, 1000);
 }
 
 
@@ -66,5 +86,5 @@ function getDateNow() {
 
 
 function getMessageId() {
-  return crypto.randomBytes(14).toString('hex');
+  return crypto.randomBytes(8).toString('hex');
 }
