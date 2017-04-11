@@ -6,4 +6,4 @@
 
 ✅ Response with DELIVRD after 10ms
 
-◻️ Response status can be configured from ENV (RESPONSE_STATUS)
+✅ Response status can be configured from ENV (RESPONSE_STATUSES)
