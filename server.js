@@ -1,5 +1,7 @@
 'use strict';
 
+require('dotenv').config({ silence: true });
+
 const crypto = require('crypto');
 const _ = require('lodash');
 const smpp = require('smpp');
@@ -9,10 +11,12 @@ const PORT = process.env.PORT || 3456;
 const HOST = process.env.HOST || 'localhost';
 const SYSTEM_TYPE = process.env.SYSTEM_TYPE || 'dummy';
 const DELIVERY_REPORT_DELAY = parseInt(process.env.DELIVERY_REPORT_DELAY) || 3000;
+const RESPONSE_STATUSES = process.env.RESPONSE_STATUSES ? process.env.RESPONSE_STATUSES.split(',') : ['DELIVRD'];
 
 smpp.createServer()
   .listen(PORT, HOST, function() {
     console.log(`Server started at ${HOST}:${PORT}...`);
+    console.log(`response with random ${RESPONSE_STATUSES.join()} DLR within ${DELIVERY_REPORT_DELAY}ms`);
   })
   .on('session', createSessionHandler);
 
@@ -47,16 +51,20 @@ function createSessionHandler(session) {
 
 
 function sendDeliveryReport(session, messageId, pdu) {
-  const date = getDateNow();
-
   session.deliver_sm({
     service_type: SYSTEM_TYPE,
     source_addr_ton: 1,
     source_addr_npi: 1,
     source_addr: pdu.destination_addr,
-    short_message: `id:${messageId} sub:000 dlvrd:000 submit date:${date} done date:${date} stat:delivrd err:000`,
+    short_message: getDeliveryReportStatusMessage(messageId),
     esm_class: 4
   });
+}
+
+function getDeliveryReportStatusMessage(messageId) {
+  const date = getDateNow();
+  const randomStatus = RESPONSE_STATUSES[Math.floor(Math.random() * RESPONSE_STATUSES.length)];
+  return `id:${messageId} sub:000 dlvrd:000 submit date:${date} done date:${date} stat:${randomStatus} err:000`
 }
 
 
